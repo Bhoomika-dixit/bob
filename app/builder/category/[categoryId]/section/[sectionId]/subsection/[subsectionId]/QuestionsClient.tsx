@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFormSchema } from "@/lib/formSchemaStore";
+import { useFormSchema, useFormSchemaHydrated } from "@/lib/formSchemaStore";
 
 type Props = {
   categoryId: string;
@@ -19,6 +19,7 @@ export function QuestionsClient({
   subsectionId,
 }: Props) {
   const router = useRouter();
+  const hydrated = useFormSchemaHydrated();
   const formSchema = useFormSchema();
 
   const category = React.useMemo(
@@ -35,6 +36,26 @@ export function QuestionsClient({
     () => section?.subsections.find((ss) => ss.id === subsectionId),
     [section?.subsections, subsectionId]
   );
+
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen w-full flex items-center justify-center p-6">
+        <Card className="w-full max-w-3xl">
+          <CardHeader className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Button variant="secondary" onClick={() => router.back()}>
+                Back
+              </Button>
+            </div>
+            <CardTitle>Questions</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-neutral-700 dark:text-neutral-300">
+            Loading...
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center p-6">

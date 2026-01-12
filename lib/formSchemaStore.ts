@@ -33,6 +33,8 @@ type Listener = () => void;
 let state: StoreState = { formSchema: { categories: [] }, initializedCount: null };
 const listeners = new Set<Listener>();
 
+let hasHydratedFromStorage = false;
+
 const STORAGE_KEY = "question-logic-builder.formSchema";
 
 function canUseStorage() {
@@ -62,6 +64,18 @@ function hydrateFromStorage() {
   }
 }
 
+function hydrateFromStorageOnce() {
+  if (hasHydratedFromStorage) return;
+  if (!canUseStorage()) return;
+  hasHydratedFromStorage = true;
+
+  const prevState = state;
+  hydrateFromStorage();
+  if (state !== prevState) {
+    emit();
+  }
+}
+
 function persistToStorage(next: StoreState) {
   if (!canUseStorage()) return;
   try {
@@ -71,10 +85,13 @@ function persistToStorage(next: StoreState) {
   }
 }
 
-hydrateFromStorage();
-
 function emit() {
   for (const l of listeners) l();
+}
+
+function subscribe(listener: Listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 function setState(next: StoreState) {
@@ -89,11 +106,28 @@ function clampCount(count: number) {
 
 function createFormSchema(categoryCount: number): FormSchema {
   const safeCount = clampCount(categoryCount);
-  const categories: Category[] = Array.from({ length: safeCount }).map((_, idx) => ({
-    id: `category-${idx + 1}`,
-    name: `Category ${idx + 1}`,
-    sections: [],
-  }));
+  const categories: Category[] = Array.from({ length: safeCount }).map((_, idx) => {
+    const categoryId = `category-${idx + 1}`;
+    const sectionId = `${categoryId}-section-1`;
+    const subsectionId = `${sectionId}-subsection-1`;
+
+    return {
+      id: categoryId,
+      name: `Category ${idx + 1}`,
+      sections: [
+        {
+          id: sectionId,
+          name: "Section 1",
+          subsections: [
+            {
+              id: subsectionId,
+              name: "Subsection 1",
+            },
+          ],
+        },
+      ],
+    };
+  });
 
   return { categories };
 }
@@ -224,12 +258,25 @@ export function setSubsectionName(
 }
 
 export function useFormSchema() {
+  React.useEffect(() => {
+    hydrateFromStorageOnce();
+  }, []);
+
   return React.useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe,
     () => state.formSchema,
     () => state.formSchema,
+  );
+}
+
+export function useFormSchemaHydrated() {
+  React.useEffect(() => {
+    hydrateFromStorageOnce();
+  }, []);
+
+  return React.useSyncExternalStore(
+    subscribe,
+    () => hasHydratedFromStorage,
+    () => false,
   );
 }

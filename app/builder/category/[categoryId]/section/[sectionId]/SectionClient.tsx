@@ -22,6 +22,7 @@ import {
   addSubsection,
   setSubsectionName,
   useFormSchema,
+  useFormSchemaHydrated,
 } from "@/lib/formSchemaStore";
 
 type Props = {
@@ -31,6 +32,7 @@ type Props = {
 
 export function SectionClient({ categoryId, sectionId }: Props) {
   const router = useRouter();
+  const hydrated = useFormSchemaHydrated();
   const formSchema = useFormSchema();
 
   const category = React.useMemo(
@@ -42,6 +44,29 @@ export function SectionClient({ categoryId, sectionId }: Props) {
     () => category?.sections.find((s) => s.id === sectionId),
     [category?.sections, sectionId]
   );
+
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen w-full flex items-center justify-center p-6">
+        <Card className="w-full max-w-3xl">
+          <CardHeader className="space-y-3">
+            <CardTitle>Subsections</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <Button variant="secondary" onClick={() => router.back()}>
+                Back
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+              Loading...
+            </div>
+          </CardContent>
+          <CardFooter />
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center p-6">
