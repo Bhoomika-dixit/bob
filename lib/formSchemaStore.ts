@@ -5,6 +5,30 @@ import * as React from "react";
 export type Subsection = {
   id: string;
   name: string;
+  questions?: Question[];
+};
+
+export type AnswerType =
+  | "boolean"
+  | "single_select"
+  | "multi_select"
+  | "text"
+  | "number"
+  | "upload"
+  | "multi_field";
+
+export type QuestionRoute = {
+  answerValue: string;
+  nextQuestionId: string | null;
+};
+
+export type Question = {
+  id: string;
+  name: string;
+  answerType: AnswerType;
+  options?: string[];
+  routes?: QuestionRoute[];
+  position?: { x: number; y: number };
 };
 
 export type Section = {
@@ -110,6 +134,7 @@ function createFormSchema(categoryCount: number): FormSchema {
     const categoryId = `category-${idx + 1}`;
     const sectionId = `${categoryId}-section-1`;
     const subsectionId = `${sectionId}-subsection-1`;
+    const firstQuestionId = `${subsectionId}-question-1`;
 
     return {
       id: categoryId,
@@ -122,6 +147,18 @@ function createFormSchema(categoryCount: number): FormSchema {
             {
               id: subsectionId,
               name: "Subsection 1",
+              questions: [
+                {
+                  id: firstQuestionId,
+                  name: "Question 1",
+                  answerType: "boolean",
+                  routes: [
+                    { answerValue: "Yes", nextQuestionId: null },
+                    { answerValue: "No", nextQuestionId: null },
+                  ],
+                  position: { x: 40, y: 40 },
+                },
+              ],
             },
           ],
         },
@@ -216,11 +253,211 @@ export function addSubsection(categoryId: string, sectionId: string) {
           sections: c.sections.map((s) => {
             if (s.id !== sectionId) return s;
             const nextIndex = s.subsections.length + 1;
+            const nextSubsectionId = `${s.id}-subsection-${nextIndex}`;
+            const firstQuestionId = `${nextSubsectionId}-question-1`;
             const nextSubsection: Subsection = {
-              id: `${s.id}-subsection-${nextIndex}`,
+              id: nextSubsectionId,
               name: nextSubsectionName(s.subsections),
+              questions: [
+                {
+                  id: firstQuestionId,
+                  name: "Question 1",
+                  answerType: "boolean",
+                  routes: [
+                    { answerValue: "Yes", nextQuestionId: null },
+                    { answerValue: "No", nextQuestionId: null },
+                  ],
+                },
+              ],
             };
             return { ...s, subsections: [...s.subsections, nextSubsection] };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+function getAnswerValues(answerType: AnswerType, options: string[] | undefined) {
+  if (answerType === "boolean") return ["Yes", "No"];
+  if (answerType === "single_select" || answerType === "multi_select") {
+    return (options ?? []).filter(Boolean);
+  }
+  return ["Next"];
+}
+
+function upsertRoute(
+  routes: QuestionRoute[] | undefined,
+  answerValue: string,
+  nextQuestionId: string | null
+) {
+  const next = [...(routes ?? [])];
+  const idx = next.findIndex((r) => r.answerValue === answerValue);
+  if (idx === -1) next.push({ answerValue, nextQuestionId });
+  else next[idx] = { answerValue, nextQuestionId };
+  return next;
+}
+
+export function addQuestion(categoryId: string, sectionId: string, subsectionId: string) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                const nextIndex = questions.length + 1;
+                const nextQuestionId = `${ss.id}-question-${nextIndex}`;
+                const nextQuestion: Question = {
+                  id: nextQuestionId,
+                  name: `Question ${nextIndex}`,
+                  answerType: "boolean",
+                  routes: [
+                    { answerValue: "Yes", nextQuestionId: null },
+                    { answerValue: "No", nextQuestionId: null },
+                  ],
+                  position: { x: 40, y: (nextIndex - 1) * 90 + 40 },
+                };
+                return { ...ss, questions: [...questions, nextQuestion] };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function setQuestionPosition(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string,
+  position: { x: number; y: number }
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) =>
+                    q.id === questionId ? { ...q, position } : q
+                  ),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function updateQuestion(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string,
+  patch: Partial<Pick<Question, "name" | "answerType" | "options">>
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    const nextAnswerType = patch.answerType ?? q.answerType;
+                    const nextOptions = patch.options ?? q.options;
+                    const answerValues = getAnswerValues(nextAnswerType, nextOptions);
+                    const existingRoutes = q.routes ?? [];
+                    const nextRoutes = answerValues.map((av) => {
+                      const existing = existingRoutes.find((r) => r.answerValue === av);
+                      return { answerValue: av, nextQuestionId: existing?.nextQuestionId ?? null };
+                    });
+                    return {
+                      ...q,
+                      ...patch,
+                      routes: nextRoutes,
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function setQuestionRoute(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string,
+  answerValue: string,
+  nextQuestionId: string | null
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    return {
+                      ...q,
+                      routes: upsertRoute(q.routes, answerValue, nextQuestionId),
+                    };
+                  }),
+                };
+              }),
+            };
           }),
         };
       }),
