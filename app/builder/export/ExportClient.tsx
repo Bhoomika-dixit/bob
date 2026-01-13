@@ -19,7 +19,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { addSubsection, setSubsectionName } from "@/lib/formSchemaStore";
+import {
+  addSubsection,
+  deleteSubsection,
+  setSubsectionName,
+  setSubsectionStartingHeading,
+} from "@/lib/formSchemaStore";
 
 function downloadJson(filename: string, data: unknown) {
   const json = JSON.stringify(data, null, 2);
@@ -50,9 +55,48 @@ export function ExportClient() {
             id: sectionId,
             name: sectionName,
             subsections: subsections.map(
-              ({ id: subsectionId, name: subsectionName }) => ({
+              ({
                 id: subsectionId,
                 name: subsectionName,
+                startingHeading,
+                questions,
+              }) => ({
+                id: subsectionId,
+                name: subsectionName,
+                startingHeading: startingHeading ?? "",
+                questions: (questions ?? []).map(
+                  ({
+                    id: questionId,
+                    name: questionName,
+                    description,
+                    shortform,
+                    isStartingQuestion,
+                    answerType,
+                    options,
+                    fields,
+                    routes,
+                    position,
+                  }) => ({
+                    id: questionId,
+                    name: questionName,
+                    description: description ?? "",
+                    shortform: shortform ?? "",
+                    isStartingQuestion: isStartingQuestion ?? false,
+                    answerType,
+                    options: options ?? [],
+                    fields: (fields ?? []).map(({ id: fieldId, label }) => ({
+                      id: fieldId,
+                      label,
+                    })),
+                    routes: (routes ?? []).map(
+                      ({ answerValue, nextQuestionId }) => ({
+                        answerValue,
+                        nextQuestionId,
+                      })
+                    ),
+                    position: position ?? null,
+                  })
+                ),
               })
             ),
           })
@@ -235,8 +279,22 @@ export function ExportClient() {
                                 </AccordionTrigger>
                                 <AccordionContent className="px-3 pb-3">
                                   <div className="space-y-2">
-                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                      Subsection title
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Subsection title
+                                      </div>
+                                      <Button
+                                        variant="secondary"
+                                        onClick={() =>
+                                          deleteSubsection(
+                                            activeCategory.id,
+                                            activeSection.id,
+                                            subsection.id
+                                          )
+                                        }
+                                      >
+                                        Delete
+                                      </Button>
                                     </div>
                                     <Input
                                       value={subsection.name}
@@ -249,6 +307,25 @@ export function ExportClient() {
                                           activeSection.id,
                                           subsection.id,
                                           nextName
+                                        );
+                                      }}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2 pt-3">
+                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                      Starting heading
+                                    </div>
+                                    <Input
+                                      value={subsection.startingHeading ?? ""}
+                                      onChange={(
+                                        e: React.ChangeEvent<HTMLInputElement>
+                                      ) => {
+                                        setSubsectionStartingHeading(
+                                          activeCategory.id,
+                                          activeSection.id,
+                                          subsection.id,
+                                          e.target.value
                                         );
                                       }}
                                     />

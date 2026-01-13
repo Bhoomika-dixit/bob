@@ -5,6 +5,7 @@ import * as React from "react";
 export type Subsection = {
   id: string;
   name: string;
+  startingHeading?: string;
   questions?: Question[];
 };
 
@@ -22,11 +23,20 @@ export type QuestionRoute = {
   nextQuestionId: string | null;
 };
 
+export type MultiField = {
+  id: string;
+  label: string;
+};
+
 export type Question = {
   id: string;
   name: string;
+  description?: string;
+  shortform?: string;
+  isStartingQuestion?: boolean;
   answerType: AnswerType;
   options?: string[];
+  fields?: MultiField[];
   routes?: QuestionRoute[];
   position?: { x: number; y: number };
 };
@@ -147,10 +157,14 @@ function createFormSchema(categoryCount: number): FormSchema {
             {
               id: subsectionId,
               name: "Subsection 1",
+              startingHeading: "",
               questions: [
                 {
                   id: firstQuestionId,
                   name: "Question 1",
+                  description: "",
+                  shortform: "",
+                  isStartingQuestion: true,
                   answerType: "boolean",
                   routes: [
                     { answerValue: "Yes", nextQuestionId: null },
@@ -225,6 +239,19 @@ export function addSection(categoryId: string) {
   });
 }
 
+export function deleteSection(categoryId: string, sectionId: string) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return { ...c, sections: c.sections.filter((s) => s.id !== sectionId) };
+      }),
+    },
+  });
+}
+
 export function setSectionName(categoryId: string, sectionId: string, name: string) {
   setState({
     initializedCount: state.initializedCount,
@@ -258,10 +285,14 @@ export function addSubsection(categoryId: string, sectionId: string) {
             const nextSubsection: Subsection = {
               id: nextSubsectionId,
               name: nextSubsectionName(s.subsections),
+              startingHeading: "",
               questions: [
                 {
                   id: firstQuestionId,
                   name: "Question 1",
+                  description: "",
+                  shortform: "",
+                  isStartingQuestion: true,
                   answerType: "boolean",
                   routes: [
                     { answerValue: "Yes", nextQuestionId: null },
@@ -271,6 +302,32 @@ export function addSubsection(categoryId: string, sectionId: string) {
               ],
             };
             return { ...s, subsections: [...s.subsections, nextSubsection] };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function deleteSubsection(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.filter((ss) => ss.id !== subsectionId),
+            };
           }),
         };
       }),
@@ -319,6 +376,9 @@ export function addQuestion(categoryId: string, sectionId: string, subsectionId:
                 const nextQuestion: Question = {
                   id: nextQuestionId,
                   name: `Question ${nextIndex}`,
+                  description: "",
+                  shortform: "",
+                  isStartingQuestion: false,
                   answerType: "boolean",
                   routes: [
                     { answerValue: "Yes", nextQuestionId: null },
@@ -327,6 +387,37 @@ export function addQuestion(categoryId: string, sectionId: string, subsectionId:
                   position: { x: 40, y: (nextIndex - 1) * 90 + 40 },
                 };
                 return { ...ss, questions: [...questions, nextQuestion] };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function deleteQuestion(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return { ...ss, questions: questions.filter((q) => q.id !== questionId) };
               }),
             };
           }),
@@ -378,7 +469,12 @@ export function updateQuestion(
   sectionId: string,
   subsectionId: string,
   questionId: string,
-  patch: Partial<Pick<Question, "name" | "answerType" | "options">>
+  patch: Partial<
+    Pick<
+      Question,
+      "name" | "description" | "shortform" | "isStartingQuestion" | "answerType" | "options" | "fields"
+    >
+  >
 ) {
   setState({
     initializedCount: state.initializedCount,
@@ -412,6 +508,126 @@ export function updateQuestion(
                       ...patch,
                       routes: nextRoutes,
                     };
+                  }),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function addMultiField(categoryId: string, sectionId: string, subsectionId: string, questionId: string) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    const fields = q.fields ?? [];
+                    const nextIndex = fields.length + 1;
+                    const nextField: MultiField = {
+                      id: `${q.id}-field-${nextIndex}`,
+                      label: `Field ${nextIndex}`,
+                    };
+                    return { ...q, fields: [...fields, nextField] };
+                  }),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function setMultiFieldLabel(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string,
+  fieldId: string,
+  label: string
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    const fields = q.fields ?? [];
+                    return {
+                      ...q,
+                      fields: fields.map((f) => (f.id === fieldId ? { ...f, label } : f)),
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function removeMultiField(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  questionId: string,
+  fieldId: string
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) => {
+                if (ss.id !== subsectionId) return ss;
+                const questions = ss.questions ?? [];
+                return {
+                  ...ss,
+                  questions: questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    const fields = q.fields ?? [];
+                    return { ...q, fields: fields.filter((f) => f.id !== fieldId) };
                   }),
                 };
               }),
@@ -485,6 +701,35 @@ export function setSubsectionName(
               ...s,
               subsections: s.subsections.map((ss) =>
                 ss.id === subsectionId ? { ...ss, name } : ss,
+              ),
+            };
+          }),
+        };
+      }),
+    },
+  });
+}
+
+export function setSubsectionStartingHeading(
+  categoryId: string,
+  sectionId: string,
+  subsectionId: string,
+  startingHeading: string
+) {
+  setState({
+    initializedCount: state.initializedCount,
+    formSchema: {
+      ...state.formSchema,
+      categories: state.formSchema.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        return {
+          ...c,
+          sections: c.sections.map((s) => {
+            if (s.id !== sectionId) return s;
+            return {
+              ...s,
+              subsections: s.subsections.map((ss) =>
+                ss.id === subsectionId ? { ...ss, startingHeading } : ss
               ),
             };
           }),

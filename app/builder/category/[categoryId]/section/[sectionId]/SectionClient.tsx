@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/accordion";
 import {
   addSubsection,
+  deleteSubsection,
   setSubsectionName,
+  setSubsectionStartingHeading,
   useFormSchema,
   useFormSchemaHydrated,
 } from "@/lib/formSchemaStore";
@@ -141,8 +143,22 @@ export function SectionClient({ categoryId, sectionId }: Props) {
                     </AccordionTrigger>
                     <AccordionContent className="px-3 pb-3">
                       <div className="space-y-2">
-                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Subsection title
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Subsection title
+                          </div>
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              deleteSubsection(
+                                category.id,
+                                section.id,
+                                subsection.id
+                              )
+                            }
+                          >
+                            Delete
+                          </Button>
                         </div>
                         <Input
                           value={subsection.name}
@@ -155,6 +171,25 @@ export function SectionClient({ categoryId, sectionId }: Props) {
                               section.id,
                               subsection.id,
                               nextName
+                            );
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2 pt-3">
+                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                          Starting heading
+                        </div>
+                        <Input
+                          value={subsection.startingHeading ?? ""}
+                          onChange={(
+                            e: React.ChangeEvent<HTMLInputElement>
+                          ) => {
+                            setSubsectionStartingHeading(
+                              category.id,
+                              section.id,
+                              subsection.id,
+                              e.target.value
                             );
                           }}
                         />

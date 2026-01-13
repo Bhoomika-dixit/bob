@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   addSection,
   type Category,
+  deleteSection,
   initFormSchemaFromCategoryCount,
   type Section,
   setCategoryName,
@@ -61,9 +62,46 @@ export function BuilderClient() {
             id: sectionId,
             name: sectionName,
             subsections: subsections.map(
-              ({ id: subsectionId, name: subsectionName }) => ({
+              ({
                 id: subsectionId,
                 name: subsectionName,
+                startingHeading,
+                questions,
+              }) => ({
+                id: subsectionId,
+                name: subsectionName,
+                startingHeading: startingHeading ?? "",
+                questions: (questions ?? []).map(
+                  ({
+                    id: questionId,
+                    name: questionName,
+                    description,
+                    shortform,
+                    isStartingQuestion,
+                    answerType,
+                    options,
+                    fields,
+                    routes,
+                  }) => ({
+                    id: questionId,
+                    name: questionName,
+                    description: description ?? "",
+                    shortform: shortform ?? "",
+                    isStartingQuestion: isStartingQuestion ?? false,
+                    answerType,
+                    options: options ?? [],
+                    fields: (fields ?? []).map(({ id: fieldId, label }) => ({
+                      id: fieldId,
+                      label,
+                    })),
+                    routes: (routes ?? []).map(
+                      ({ answerValue, nextQuestionId }) => ({
+                        answerValue,
+                        nextQuestionId,
+                      })
+                    ),
+                  })
+                ),
               })
             ),
           })
@@ -164,8 +202,18 @@ export function BuilderClient() {
                         key={section.id}
                         className="space-y-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-800"
                       >
-                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Section title
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Section title
+                          </div>
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              deleteSection(category.id, section.id)
+                            }
+                          >
+                            Delete
+                          </Button>
                         </div>
                         <Input
                           value={section.name}

@@ -16,8 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   addQuestion,
   type AnswerType,
+  addMultiField,
+  deleteQuestion,
+  removeMultiField,
   setQuestionPosition,
   setQuestionRoute,
+  setMultiFieldLabel,
   updateQuestion,
   useFormSchema,
   useFormSchemaHydrated,
@@ -135,10 +139,16 @@ export function QuestionsClient({
       .filter(Boolean);
   }, []);
 
+  const [optionsDraft, setOptionsDraft] = React.useState<string>("");
+
   const optionsString = React.useMemo(() => {
     if (!selectedQuestion) return "";
     return (selectedQuestion.options ?? []).join(", ");
   }, [selectedQuestion]);
+
+  React.useEffect(() => {
+    setOptionsDraft(optionsString);
+  }, [optionsString, selectedQuestionId]);
 
   const END_NODE_ID = "__END__";
 
@@ -336,27 +346,51 @@ export function QuestionsClient({
                         questions.map((q) => {
                           const isActive = q.id === selectedQuestionId;
                           return (
-                            <button
+                            <div
                               key={q.id}
-                              type="button"
                               className={
-                                "w-full rounded-md border px-3 py-2 text-left text-sm transition-colors " +
+                                "flex items-start justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors " +
                                 (isActive
                                   ? "border-pink-200 bg-pink-50"
                                   : "border-neutral-200 hover:bg-neutral-50")
                               }
-                              onClick={() => {
-                                setSelectedQuestionId(q.id);
-                                setSelectedEdgeId("");
-                              }}
                             >
-                              <div className="font-medium text-neutral-900">
-                                {q.name}
-                              </div>
-                              <div className="text-xs text-neutral-600">
-                                {q.answerType}
-                              </div>
-                            </button>
+                              <button
+                                type="button"
+                                className="flex-1 text-left"
+                                onClick={() => {
+                                  setSelectedQuestionId(q.id);
+                                  setSelectedEdgeId("");
+                                }}
+                              >
+                                <div className="font-medium text-neutral-900">
+                                  {q.name}
+                                </div>
+                                <div className="text-xs text-neutral-600">
+                                  {q.answerType}
+                                </div>
+                              </button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => {
+                                  deleteQuestion(
+                                    categoryId,
+                                    sectionId,
+                                    subsectionId,
+                                    q.id
+                                  );
+
+                                  if (selectedQuestionId === q.id) {
+                                    const remaining = questions
+                                      .filter((qq) => qq.id !== q.id)
+                                      .map((qq) => qq.id);
+                                    setSelectedQuestionId(remaining[0] ?? "");
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           );
                         })
                       )}
@@ -398,6 +432,81 @@ export function QuestionsClient({
 
                           <div className="space-y-2">
                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                              Question description
+                            </div>
+                            <Input
+                              value={selectedQuestion.description ?? ""}
+                              onChange={(
+                                e: React.ChangeEvent<HTMLInputElement>
+                              ) => {
+                                updateQuestion(
+                                  categoryId,
+                                  sectionId,
+                                  subsectionId,
+                                  selectedQuestion.id,
+                                  {
+                                    description: e.target.value,
+                                  }
+                                );
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                              Shortform
+                            </div>
+                            <Input
+                              value={selectedQuestion.shortform ?? ""}
+                              onChange={(
+                                e: React.ChangeEvent<HTMLInputElement>
+                              ) => {
+                                updateQuestion(
+                                  categoryId,
+                                  sectionId,
+                                  subsectionId,
+                                  selectedQuestion.id,
+                                  {
+                                    shortform: e.target.value,
+                                  }
+                                );
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                              Starting question
+                            </div>
+                            <Select
+                              value={
+                                selectedQuestion.isStartingQuestion ?? false
+                                  ? "yes"
+                                  : "no"
+                              }
+                              onValueChange={(v) => {
+                                updateQuestion(
+                                  categoryId,
+                                  sectionId,
+                                  subsectionId,
+                                  selectedQuestion.id,
+                                  {
+                                    isStartingQuestion: v === "yes",
+                                  }
+                                );
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="yes">Yes</SelectItem>
+                                  <SelectItem value="no">No</SelectItem>
+                                </SelectContent>
+                              </SelectTrigger>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
                               Answer type
                             </div>
                             <Select
@@ -429,6 +538,76 @@ export function QuestionsClient({
                             </Select>
                           </div>
 
+                          {selectedQuestion.answerType === "multi_field" ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                  Text fields
+                                </div>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => {
+                                    addMultiField(
+                                      categoryId,
+                                      sectionId,
+                                      subsectionId,
+                                      selectedQuestion.id
+                                    );
+                                  }}
+                                >
+                                  Add Field
+                                </Button>
+                              </div>
+
+                              {(selectedQuestion.fields ?? []).length === 0 ? (
+                                <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                  No fields yet.
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {(selectedQuestion.fields ?? []).map(
+                                    (field) => (
+                                      <div
+                                        key={field.id}
+                                        className="flex items-center gap-2"
+                                      >
+                                        <Input
+                                          value={field.label}
+                                          onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>
+                                          ) => {
+                                            setMultiFieldLabel(
+                                              categoryId,
+                                              sectionId,
+                                              subsectionId,
+                                              selectedQuestion.id,
+                                              field.id,
+                                              e.target.value
+                                            );
+                                          }}
+                                        />
+                                        <Button
+                                          variant="secondary"
+                                          onClick={() => {
+                                            removeMultiField(
+                                              categoryId,
+                                              sectionId,
+                                              subsectionId,
+                                              selectedQuestion.id,
+                                              field.id
+                                            );
+                                          }}
+                                        >
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+
                           {selectedQuestion.answerType === "single_select" ||
                           selectedQuestion.answerType === "multi_select" ? (
                             <div className="space-y-2">
@@ -436,17 +615,32 @@ export function QuestionsClient({
                                 Options (comma-separated)
                               </div>
                               <Input
-                                value={optionsString}
+                                value={optionsDraft}
                                 onChange={(
                                   e: React.ChangeEvent<HTMLInputElement>
                                 ) => {
+                                  setOptionsDraft(e.target.value);
+                                }}
+                                onBlur={() => {
                                   updateQuestion(
                                     categoryId,
                                     sectionId,
                                     subsectionId,
                                     selectedQuestion.id,
                                     {
-                                      options: parseOptions(e.target.value),
+                                      options: parseOptions(optionsDraft),
+                                    }
+                                  );
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key !== "Enter") return;
+                                  updateQuestion(
+                                    categoryId,
+                                    sectionId,
+                                    subsectionId,
+                                    selectedQuestion.id,
+                                    {
+                                      options: parseOptions(optionsDraft),
                                     }
                                   );
                                 }}
